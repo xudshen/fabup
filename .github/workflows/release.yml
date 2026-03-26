@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: fab-darwin-arm64
+          - os: ubuntu-latest
+            target: fab-linux-x64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Dart SDK version from pubspec
+        id: sdk
+        run: |
+          SDK=$(grep 'sdk:' pubspec.yaml | head -1 | sed 's/.*\^//')
+          echo "version=$SDK" >> $GITHUB_OUTPUT
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ steps.sdk.outputs.version }}
+      - name: Install dependencies
+        run: dart pub get
+      - name: Run tests
+        run: dart test --reporter expanded
+      - name: Compile binary
+        run: dart compile exe bin/fab.dart -o ${{ matrix.target }}
+      - name: Verify binary
+        run: ./${{ matrix.target }} --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.target }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "fabup ${{ github.ref_name }}" \
+            --generate-notes \
+            artifacts/fab-darwin-arm64/fab-darwin-arm64 \
+            artifacts/fab-linux-x64/fab-linux-x64 \
+            install.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
