@@ -46,22 +46,22 @@ chmod +x "$BIN_DIR/fab"
 "$BIN_DIR/fab" --version
 
 # Add to PATH if needed
-if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-  SHELL_RC="$HOME/.zshrc"
-  if [[ "$SHELL" == */bash ]]; then
-    SHELL_RC="$HOME/.bashrc"
-  elif [[ "$SHELL" == */fish ]]; then
-    SHELL_RC="$HOME/.config/fish/config.fish"
-  fi
+SHELL_RC="$HOME/.zshrc"
+if [[ "$SHELL" == */bash ]]; then
+  SHELL_RC="$HOME/.bashrc"
+elif [[ "$SHELL" == */fish ]]; then
+  SHELL_RC="$HOME/.config/fish/config.fish"
+fi
 
+if grep -q "$BIN_DIR" "$SHELL_RC" 2>/dev/null; then
+  echo "$BIN_DIR is already in $SHELL_RC."
+else
   echo "" >> "$SHELL_RC"
   echo "# FAB version manager" >> "$SHELL_RC"
   echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$SHELL_RC"
   echo ""
   echo "Added $BIN_DIR to PATH in $SHELL_RC"
   echo "Run: source $SHELL_RC"
-else
-  echo "$BIN_DIR is already in PATH."
 fi
 
 echo ""
