@@ -37,6 +37,7 @@ class GithubReleaseClient {
   }
 
   /// Get download URL for a specific asset in a release.
+  /// Returns the API URL (works for both public and private repos).
   Future<String?> getAssetUrl(String tag, String assetName) async {
     final url = Uri.parse('$apiBaseUrl/repos/$owner/$repo/releases/tags/$tag');
     final response = await _client.get(url, headers: _headers);
@@ -47,15 +48,20 @@ class GithubReleaseClient {
     final assets = (release['assets'] as List).cast<Map<String, dynamic>>();
     for (final asset in assets) {
       if (asset['name'] == assetName) {
-        return asset['browser_download_url'] as String;
+        // Use API URL for private repo compatibility
+        final assetId = asset['id'];
+        return '$apiBaseUrl/repos/$owner/$repo/releases/assets/$assetId';
       }
     }
     return null;
   }
 
-  /// Download raw bytes from a URL.
+  /// Download asset bytes from an API URL.
+  /// Uses Accept: application/octet-stream for GitHub asset downloads.
   Future<Uint8List> downloadBytes(String url) async {
-    final response = await _client.get(Uri.parse(url), headers: _headers);
+    final downloadHeaders = Map<String, String>.from(_headers);
+    downloadHeaders['Accept'] = 'application/octet-stream';
+    final response = await _client.get(Uri.parse(url), headers: downloadHeaders);
     if (response.statusCode != 200) {
       throw Exception('Download failed: ${response.statusCode}');
     }
