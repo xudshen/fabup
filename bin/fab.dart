@@ -14,7 +14,7 @@ import 'package:fabup/src/shim/forwarder.dart';
 import 'package:fabup/src/version.dart';
 
 const _fabOwner = 'xudshen';
-const _fabRepo = 'fab_playground';
+const _fabRepo = 'fab';
 const _darticOwner = 'xudshen';
 const _darticRepo = 'dartic';
 
