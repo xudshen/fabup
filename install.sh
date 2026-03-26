@@ -35,17 +35,11 @@ if [ -z "$LATEST" ]; then
 fi
 echo "Latest version: $LATEST"
 
-# Download binary
+# Download binary (fabup repo is public, no token needed)
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$LATEST/fab-$TARGET"
 echo "Downloading fab-$TARGET..."
 
-CURL_OPTS="-fsSL"
-if [ -n "$GITHUB_TOKEN" ]; then
-  CURL_OPTS="$CURL_OPTS -H 'Authorization: Bearer $GITHUB_TOKEN'"
-  CURL_OPTS="$CURL_OPTS -H 'Accept: application/octet-stream'"
-fi
-
-curl $CURL_OPTS "$DOWNLOAD_URL" -o "$BIN_DIR/fab"
+curl -fsSL -o "$BIN_DIR/fab" "$DOWNLOAD_URL"
 chmod +x "$BIN_DIR/fab"
 
 # Verify
