@@ -27,8 +27,8 @@ void main() {
             'tag_name': 'v1.2.0',
             'prerelease': false,
             'assets': [
-              {'name': 'manifest.json', 'browser_download_url': '$baseUrl/manifest.json'},
-              {'name': 'fab-cli-darwin-arm64', 'browser_download_url': '$baseUrl/fab-cli'},
+              {'id': 201, 'name': 'manifest.json', 'browser_download_url': '$baseUrl/manifest.json'},
+              {'id': 202, 'name': 'fab-cli-darwin-arm64', 'browser_download_url': '$baseUrl/fab-cli'},
             ],
           }))
           ..close();
@@ -39,19 +39,22 @@ void main() {
             'tag_name': 'v1.0.3',
             'prerelease': false,
             'assets': [
-              {'name': 'dartic-cli-darwin-arm64', 'browser_download_url': '$baseUrl/dartic-cli'},
+              {'id': 301, 'name': 'dartic-cli-darwin-arm64', 'browser_download_url': '$baseUrl/dartic-cli'},
             ],
           }))
           ..close();
-      } else if (req.uri.path == '/manifest.json') {
+      } else if (req.uri.path == '/manifest.json' ||
+                 req.uri.path.endsWith('/assets/201')) {
         req.response
           ..write('{"fab_cli":"1.2.0","dartic_cli":"1.0.3"}')
           ..close();
-      } else if (req.uri.path == '/fab-cli') {
+      } else if (req.uri.path == '/fab-cli' ||
+                 req.uri.path.endsWith('/assets/202')) {
         req.response
           ..write('FAKE_FAB_CLI')
           ..close();
-      } else if (req.uri.path == '/dartic-cli') {
+      } else if (req.uri.path == '/dartic-cli' ||
+                 req.uri.path.endsWith('/assets/301')) {
         req.response
           ..write('FAKE_DARTIC_CLI')
           ..close();

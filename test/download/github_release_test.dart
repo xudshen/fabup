@@ -20,10 +20,12 @@ void main() {
             'prerelease': false,
             'assets': [
               {
+                'id': 101,
                 'name': 'manifest.json',
                 'browser_download_url': '$baseUrl/download/manifest.json',
               },
               {
+                'id': 102,
                 'name': 'fab-cli-darwin-arm64',
                 'browser_download_url': '$baseUrl/download/fab-cli-darwin-arm64',
               },
@@ -44,9 +46,15 @@ void main() {
           ..headers.contentType = ContentType.json
           ..write('{"fab_cli":"1.2.0","dartic_cli":"1.0.3"}')
           ..close();
-      } else if (req.uri.path == '/download/fab-cli-darwin-arm64') {
+      } else if (req.uri.path == '/download/fab-cli-darwin-arm64' ||
+                 req.uri.path == '/repos/owner/fab/releases/assets/102') {
         req.response
           ..write('FAKE_BINARY_CONTENT')
+          ..close();
+      } else if (req.uri.path == '/repos/owner/fab/releases/assets/101') {
+        req.response
+          ..headers.contentType = ContentType.json
+          ..write('{"fab_cli":"1.2.0","dartic_cli":"1.0.3"}')
           ..close();
       } else {
         req.response
@@ -88,7 +96,7 @@ void main() {
         apiBaseUrl: baseUrl,
       );
       final url = await client.getAssetUrl('v1.2.0', 'manifest.json');
-      expect(url, '$baseUrl/download/manifest.json');
+      expect(url, '$baseUrl/repos/owner/fab/releases/assets/101');
     });
 
     test('getAssetUrl returns null for missing asset', () async {
