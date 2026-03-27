@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:fabup/src/config/fab_home.dart';
 import 'package:fabup/src/config/fabrc.dart';
+import 'package:fabup/src/config/fabrc_local.dart';
 import 'package:fabup/src/commands/install_command.dart';
 import 'package:fabup/src/commands/use_command.dart';
 import 'package:fabup/src/commands/list_command.dart';
@@ -47,8 +48,12 @@ Future<void> main(List<String> args) async {
   final version = _resolveVersion(home);
   final isDartic = CommandRouter.isDarticCommand(first);
   final forwardArgs = isDartic ? args.sublist(1) : args;
+
+  // Inject --flutter-sdk from .fabrc.local if not already provided.
+  final enrichedArgs = _injectFlutterSdk(forwardArgs);
+
   final binary = Forwarder.resolveBinary(home, version, isDartic: isDartic);
-  final exitCode = await Forwarder.forward(binary, forwardArgs);
+  final exitCode = await Forwarder.forward(binary, enrichedArgs);
   exit(exitCode);
 }
 
@@ -149,6 +154,14 @@ Future<int> _runManagement(FabHome home, String command, List<String> rest) asyn
     stderr.writeln('Error: $e');
     return 1;
   }
+}
+
+/// Inject `--flutter-sdk` from `.fabrc.local` if the user didn't provide it.
+List<String> _injectFlutterSdk(List<String> args) {
+  if (args.contains('--flutter-sdk')) return args;
+  final flutterSdk = FabrcLocal.findFlutterSdk(Directory.current.path);
+  if (flutterSdk == null) return args;
+  return [...args, '--flutter-sdk', flutterSdk];
 }
 
 void _printUsage() {
