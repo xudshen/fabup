@@ -49,8 +49,8 @@ Future<void> main(List<String> args) async {
   final isDartic = CommandRouter.isDarticCommand(first);
   final forwardArgs = isDartic ? args.sublist(1) : args;
 
-  // Inject --flutter-sdk from .fabrc.local if not already provided.
-  final enrichedArgs = _injectFlutterSdk(forwardArgs);
+  // Inject --flutter-sdk from .fabrc.local for fab-cli (not dartic-cli).
+  final enrichedArgs = isDartic ? forwardArgs : _injectFlutterSdk(forwardArgs);
 
   final binary = Forwarder.resolveBinary(home, version, isDartic: isDartic);
   final exitCode = await Forwarder.forward(binary, enrichedArgs);
