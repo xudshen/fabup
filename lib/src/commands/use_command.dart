@@ -1,9 +1,9 @@
 // lib/src/commands/use_command.dart
-import 'dart:convert';
 import 'dart:io';
 import 'package:fabup/src/config/fab_home.dart';
 import 'package:fabup/src/config/fabrc.dart';
 import 'package:fabup/src/config/fabrc_local.dart';
+import 'package:fabup/src/download/manifest.dart';
 import 'package:fabup/src/sdk/flutter_sdk_discovery.dart';
 
 void useVersion({
@@ -38,14 +38,13 @@ void _resolveAndWriteFlutterSdk(
   final manifestFile = File(home.manifestPath(version));
   if (!manifestFile.existsSync()) return;
 
-  String? constraint;
+  final Manifest manifest;
   try {
-    final json =
-        jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
-    constraint = json['required_flutter_sdk'] as String?;
+    manifest = Manifest.fromFile(manifestFile);
   } catch (_) {
     return;
   }
+  final constraint = manifest.requiredFlutterSdk;
 
   final flutterSdk = FlutterSdkDiscovery.discover(constraint: constraint);
   if (flutterSdk == null) {

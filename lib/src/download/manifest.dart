@@ -1,4 +1,7 @@
 // lib/src/download/manifest.dart
+import 'dart:convert';
+import 'dart:io';
+
 class Manifest {
   final String fabCliVersion;
   final String darticCliVersion;
@@ -16,6 +19,12 @@ class Manifest {
     this.requiredFlutterSdk,
     this.requiredDartSdk,
   });
+
+  /// Read manifest from a JSON file on disk.
+  factory Manifest.fromFile(File file) {
+    final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+    return Manifest.fromJson(json);
+  }
 
   factory Manifest.fromJson(Map<String, dynamic> json) {
     return Manifest(

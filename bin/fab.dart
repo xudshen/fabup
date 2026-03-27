@@ -158,7 +158,7 @@ Future<int> _runManagement(FabHome home, String command, List<String> rest) asyn
 
 /// Inject `--flutter-sdk` from `.fabrc.local` if the user didn't provide it.
 List<String> _injectFlutterSdk(List<String> args) {
-  if (args.contains('--flutter-sdk')) return args;
+  if (args.any((a) => a.startsWith('--flutter-sdk'))) return args;
   final flutterSdk = FabrcLocal.findFlutterSdk(Directory.current.path);
   if (flutterSdk == null) return args;
   return [...args, '--flutter-sdk', flutterSdk];
