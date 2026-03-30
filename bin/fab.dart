@@ -23,12 +23,16 @@ Future<void> main(List<String> args) async {
   final home = FabHome();
   home.ensureStructure();
 
-  if (args.isEmpty) {
+  // Parse --verbose before routing (strip it from args).
+  final verbose = args.contains('--verbose');
+  final cleanArgs = args.where((a) => a != '--verbose').toList();
+
+  if (cleanArgs.isEmpty) {
     _printUsage();
     exit(0);
   }
 
-  final first = args.first;
+  final first = cleanArgs.first;
 
   if (first == '--version') {
     stdout.writeln('fab (fabup) $fabupVersion');
@@ -41,33 +45,53 @@ Future<void> main(List<String> args) async {
   }
 
   if (CommandRouter.isManagementCommand(first)) {
-    exit(await _runManagement(home, first, args.sublist(1)));
+    exit(await _runManagement(home, first, cleanArgs.sublist(1),
+        verbose: verbose));
   }
 
   // Forward: resolve version, exec binary
-  final version = _resolveVersion(home);
+  final version = _resolveVersion(home, verbose: verbose);
   final isDartic = CommandRouter.isDarticCommand(first);
-  final forwardArgs = isDartic ? args.sublist(1) : args;
+  final forwardArgs = isDartic ? cleanArgs.sublist(1) : cleanArgs;
 
-  // Inject --flutter-sdk from .fabrc.local for fab-cli (not dartic-cli).
-  final enrichedArgs = isDartic ? forwardArgs : _injectFlutterSdk(forwardArgs);
+  // Inject --flutter-sdk for fab-cli (not dartic-cli) and --verbose.
+  var enrichedArgs =
+      isDartic ? forwardArgs : _injectFlutterSdk(forwardArgs, verbose: verbose);
+  if (verbose && !enrichedArgs.contains('--verbose')) {
+    enrichedArgs = [...enrichedArgs, '--verbose'];
+  }
 
   final binary = Forwarder.resolveBinary(home, version, isDartic: isDartic);
+  if (verbose) {
+    stderr.writeln('[fabup] binary: $binary');
+    stderr.writeln('[fabup] forward: ${[binary, ...enrichedArgs].join(' ')}');
+  }
   final exitCode = await Forwarder.forward(binary, enrichedArgs);
   exit(exitCode);
 }
 
-String _resolveVersion(FabHome home) {
+String _resolveVersion(FabHome home, {bool verbose = false}) {
   final projectVersion = Fabrc.findVersion(Directory.current.path);
-  if (projectVersion != null) return projectVersion;
+  if (projectVersion != null) {
+    if (verbose) stderr.writeln('[fabup] version: $projectVersion (from .fabrc)');
+    return projectVersion;
+  }
   final global = home.globalVersion();
-  if (global != null) return global;
+  if (global != null) {
+    if (verbose) stderr.writeln('[fabup] version: $global (global default)');
+    return global;
+  }
   stderr.writeln('No FAB version configured.');
   stderr.writeln('Run: fab install <version>');
   exit(1);
 }
 
-Future<int> _runManagement(FabHome home, String command, List<String> rest) async {
+Future<int> _runManagement(
+  FabHome home,
+  String command,
+  List<String> rest, {
+  bool verbose = false,
+}) async {
   final token = Platform.environment['GITHUB_TOKEN'];
 
   try {
@@ -90,6 +114,7 @@ Future<int> _runManagement(FabHome home, String command, List<String> rest) asyn
           fabClient: fabClient,
           darticClient: darticClient,
           platformSuffix: platform.assetSuffix,
+          verbose: verbose,
         );
         fabClient.close();
         darticClient.close();
@@ -102,12 +127,14 @@ Future<int> _runManagement(FabHome home, String command, List<String> rest) asyn
         }
         final parser = ArgParser()..addFlag('global', defaultsTo: false);
         final results = parser.parse(rest);
-        final version = results.rest.isNotEmpty ? results.rest.first : rest.first;
+        final version =
+            results.rest.isNotEmpty ? results.rest.first : rest.first;
         useVersion(
           home: home,
           version: version.replaceFirst(RegExp(r'^v'), ''),
           projectDir: Directory.current.path,
           global: results['global'] as bool,
+          verbose: verbose,
         );
         return 0;
 
@@ -127,7 +154,8 @@ Future<int> _runManagement(FabHome home, String command, List<String> rest) asyn
           client.close();
         } else {
           final projectVersion = Fabrc.findVersion(Directory.current.path);
-          stdout.write(formatLocalVersions(home: home, projectVersion: projectVersion));
+          stdout.write(
+              formatLocalVersions(home: home, projectVersion: projectVersion));
         }
         return 0;
 
@@ -157,10 +185,17 @@ Future<int> _runManagement(FabHome home, String command, List<String> rest) asyn
 }
 
 /// Inject `--flutter-sdk` from `.fabrc.local` if the user didn't provide it.
-List<String> _injectFlutterSdk(List<String> args) {
+List<String> _injectFlutterSdk(List<String> args, {bool verbose = false}) {
   if (args.any((a) => a.startsWith('--flutter-sdk'))) return args;
   final flutterSdk = FabrcLocal.findFlutterSdk(Directory.current.path);
-  if (flutterSdk == null) return args;
+  if (flutterSdk == null) {
+    if (verbose) stderr.writeln('[fabup] .fabrc.local: not found');
+    return args;
+  }
+  if (verbose) {
+    stderr.writeln('[fabup] .fabrc.local: flutter_sdk=$flutterSdk');
+    stderr.writeln('[fabup] injecting: --flutter-sdk $flutterSdk');
+  }
   return [...args, '--flutter-sdk', flutterSdk];
 }
 
@@ -177,6 +212,9 @@ void _printUsage() {
   stdout.writeln('All other commands are forwarded to the active fab-cli:');
   stdout.writeln('  fab compile, fab run, fab check, ...');
   stdout.writeln('  fab dartic <args>              Forward to dartic-cli');
+  stdout.writeln('');
+  stdout.writeln('Options:');
+  stdout.writeln('  --verbose                      Enable verbose output');
   stdout.writeln('');
   stdout.writeln('Set GITHUB_TOKEN env var for private repo access.');
 }

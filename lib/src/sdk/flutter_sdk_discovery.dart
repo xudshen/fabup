@@ -13,14 +13,22 @@ class FlutterSdkDiscovery {
   /// Returns the SDK path, or null if none found.
   /// Discovery chain: FAB_FLUTTER_SDK env → .fvmrc → .fvm/fvm_config.json
   /// → .flutter-version → which flutter.
-  static String? discover({String? constraint}) {
+  static String? discover({
+    String? constraint,
+    void Function(String)? onVerbose,
+  }) {
+    void v(String msg) => onVerbose?.call(msg);
+
     // 1. FAB_FLUTTER_SDK environment variable
+    v('[fabup] Flutter: trying FAB_FLUTTER_SDK...');
     final fabEnv = Platform.environment['FAB_FLUTTER_SDK'];
     if (fabEnv != null && Directory(fabEnv).existsSync()) {
       if (constraint == null || _validateVersion(fabEnv, constraint)) {
+        v('[fabup] Flutter: FAB_FLUTTER_SDK → $fabEnv');
         return fabEnv;
       }
     }
+    v('[fabup] Flutter: FAB_FLUTTER_SDK not set');
 
     // 2-4: FVM config files → version string → FVM cache
     for (final version in [
@@ -30,13 +38,20 @@ class FlutterSdkDiscovery {
     ]) {
       if (version == null) continue;
       if (constraint != null && !_satisfiesCaret(version, constraint)) {
+        v('[fabup] Flutter: found $version, does not satisfy $constraint');
         continue;
       }
+      v('[fabup] Flutter: $version satisfies ${constraint ?? 'any'}');
       final path = _fvmCachePath(version);
-      if (path != null) return path;
+      if (path != null) {
+        v('[fabup] Flutter: FVM cache → $path');
+        return path;
+      }
+      v('[fabup] Flutter: FVM cache miss for $version');
     }
 
     // 5. which flutter → resolve symlinks → two levels up
+    v('[fabup] Flutter: trying which flutter...');
     try {
       final result = Process.runSync('which', ['flutter']);
       if (result.exitCode == 0) {
@@ -46,12 +61,14 @@ class FlutterSdkDiscovery {
           final sdkPath = File(resolved).parent.parent.path;
           if (Directory(sdkPath).existsSync()) {
             if (constraint == null || _validateVersion(sdkPath, constraint)) {
+              v('[fabup] Flutter: which flutter → $sdkPath');
               return sdkPath;
             }
           }
         }
       }
     } catch (_) {}
+    v('[fabup] Flutter: not found');
 
     return null;
   }

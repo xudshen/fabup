@@ -11,9 +11,11 @@ void useVersion({
   required String version,
   required String projectDir,
   required bool global,
+  bool verbose = false,
 }) {
   if (!home.isInstalled(version)) {
-    throw StateError('Version $version is not installed. Run: fab install $version');
+    throw StateError(
+        'Version $version is not installed. Run: fab install $version');
   }
 
   if (global) {
@@ -25,16 +27,15 @@ void useVersion({
   }
 
   // Discover Flutter SDK and write .fabrc.local.
-  _resolveAndWriteFlutterSdk(home, version, projectDir);
+  _resolveAndWriteFlutterSdk(home, version, projectDir, verbose: verbose);
 }
 
-/// Read the manifest to get requiredFlutterSdk, discover a matching
-/// Flutter SDK, and write the path to .fabrc.local.
 void _resolveAndWriteFlutterSdk(
   FabHome home,
   String version,
-  String projectDir,
-) {
+  String projectDir, {
+  bool verbose = false,
+}) {
   final manifestFile = File(home.manifestPath(version));
   if (!manifestFile.existsSync()) return;
 
@@ -45,11 +46,19 @@ void _resolveAndWriteFlutterSdk(
     return;
   }
   final constraint = manifest.requiredFlutterSdk;
+  if (verbose) {
+    stderr.writeln('[fabup] manifest: '
+        'required_flutter_sdk=${manifest.requiredFlutterSdk}, '
+        'required_dart_sdk=${manifest.requiredDartSdk}');
+  }
 
-  final flutterSdk = FlutterSdkDiscovery.discover(constraint: constraint);
+  final flutterSdk = FlutterSdkDiscovery.discover(
+    constraint: constraint,
+    onVerbose: verbose ? (msg) => stderr.writeln(msg) : null,
+  );
   if (flutterSdk == null) {
     stderr.writeln('');
-    stderr.writeln('⚠ Could not find Flutter SDK'
+    stderr.writeln('\u26a0 Could not find Flutter SDK'
         '${constraint != null ? ' satisfying $constraint' : ''}.');
     stderr.writeln('  Commands may fall back to PATH or fail.');
     stderr.writeln('  To fix: fvm install <version> && fvm use <version>');
@@ -57,6 +66,9 @@ void _resolveAndWriteFlutterSdk(
   }
 
   final flutterVersion = FlutterSdkDiscovery.readVersion(flutterSdk) ?? '?';
+  if (verbose) {
+    stderr.writeln('[fabup] writing .fabrc.local → flutter_sdk=$flutterSdk');
+  }
   FabrcLocal.write(projectDir, flutterSdk: flutterSdk);
   stderr.writeln('Flutter SDK $flutterVersion ($flutterSdk)');
   stderr.writeln('.fabrc.local written.');

@@ -12,6 +12,7 @@ Future<void> installVersion({
   required GithubReleaseClient fabClient,
   required GithubReleaseClient darticClient,
   required String platformSuffix,
+  bool verbose = false,
 }) async {
   if (home.isInstalled(version)) {
     stderr.writeln('Version $version is already installed.');
@@ -26,6 +27,7 @@ Future<void> installVersion({
   if (manifestUrl == null) {
     throw Exception('manifest.json not found in release $tag');
   }
+  if (verbose) stderr.writeln('[fabup] manifest URL: $manifestUrl');
   final manifestBytes = await fabClient.downloadBytes(manifestUrl);
   final manifest = Manifest.fromJson(
     jsonDecode(String.fromCharCodes(manifestBytes)) as Map<String, dynamic>,
@@ -36,7 +38,8 @@ Future<void> installVersion({
   final darticAssetName = 'dartic-cli-$platformSuffix';
   final darticTag = 'v${manifest.darticCliVersion}';
 
-  stderr.writeln('Downloading fab-cli $version and dartic-cli ${manifest.darticCliVersion}...');
+  stderr.writeln(
+      'Downloading fab-cli $version and dartic-cli ${manifest.darticCliVersion}...');
 
   final fabUrlFuture = fabClient.getAssetUrl(tag, fabAssetName);
   final darticUrlFuture = darticClient.getAssetUrl(darticTag, darticAssetName);
@@ -44,8 +47,16 @@ Future<void> installVersion({
 
   final fabUrl = results[0];
   final darticUrl = results[1];
-  if (fabUrl == null) throw Exception('$fabAssetName not found in release $tag');
-  if (darticUrl == null) throw Exception('$darticAssetName not found in release $darticTag');
+  if (fabUrl == null) {
+    throw Exception('$fabAssetName not found in release $tag');
+  }
+  if (darticUrl == null) {
+    throw Exception('$darticAssetName not found in release $darticTag');
+  }
+  if (verbose) {
+    stderr.writeln('[fabup] downloading fab-cli: $fabUrl');
+    stderr.writeln('[fabup] downloading dartic-cli: $darticUrl');
+  }
 
   final downloads = await Future.wait([
     fabClient.downloadBytes(fabUrl),
@@ -67,6 +78,13 @@ Future<void> installVersion({
   File(home.manifestPath(version)).writeAsStringSync(
     const JsonEncoder.withIndent('  ').convert(manifest.toJson()),
   );
+
+  if (verbose) {
+    stderr.writeln(
+        '[fabup] wrote: ${fabCliFile.path} (${downloads[0].length} bytes)');
+    stderr.writeln(
+        '[fabup] wrote: ${darticCliFile.path} (${downloads[1].length} bytes)');
+  }
 
   stderr.writeln('Installed $version.');
 
